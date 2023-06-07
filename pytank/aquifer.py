@@ -18,6 +18,7 @@ def schilthuis_aq(pi, p, k, h, uw, ra, re):
     :return: a single or array-like value of aquifer influx (bbl)
     """
 
+
     # Convert to numpy array in case the user has input a scalar or list
     # TODO Check only for numerical values and lists, otherwise throw an Exception
     if isinstance(p, np.ndarray):
