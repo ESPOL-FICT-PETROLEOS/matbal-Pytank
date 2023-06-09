@@ -1,0 +1,15 @@
+﻿ID,DATE,FLOWTIME,WATER_VOL,Tank
+A-24-I,1/1/2019,26,92015,tank_center
+A-24-I,2/1/2019,28,101533,tank_center
+A-24-I,3/1/2019,31,106078,tank_center
+A-24-I,4/1/2019,30,105079,tank_center
+A-24-I,5/1/2019,31,107338,tank_center
+A-24-I,6/1/2019,30,98443,tank_center
+A-24-I,7/1/2019,31,84661,tank_center
+A-25-I,1/1/2019,11,37361,tank_center
+A-25-I,2/1/2019,28,136627,tank_center
+A-25-I,3/1/2019,11,63208,tank_center
+A-25-I,4/1/2019,22,123718,tank_center
+A-25-I,5/1/2019,31,176431,tank_center
+A-25-I,6/1/2019,30,141778,tank_center
+A-25-I,7/1/2019,28,86428,tank_center
