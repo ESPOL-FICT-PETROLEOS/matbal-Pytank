@@ -9,9 +9,9 @@ from pytank.material_balance import underground_withdrawal, pressure_vol_avg
 formatter = ticker.EngFormatter()
 
 # %% specify files to load
-production_file = "tests/data_for_tests/full_example_1/production.csv"
-pressure_file = "tests/data_for_tests/full_example_1/pressures.csv"
-pvt_file = "tests/data_for_tests/full_example_1/pvt.csv"
+production_file = "../tests/data_for_tests/full_example_1/production.csv"
+pressure_file = "../tests/data_for_tests/full_example_1/pressures.csv"
+pvt_file = "../tests/data_for_tests/full_example_1/pvt.csv"
 
 # %% Load data into dataframes
 df_prod = pd.read_csv(production_file)
@@ -20,7 +20,7 @@ df_pvt = pd.read_csv(pvt_file)
 
 # %% Cast date column to date
 date_col = "START_DATETIME"
-df_prod[date_col] = df_prod[date_col].astype("datetime64")
+df_prod[date_col] = pd.to_datetime(df_prod['START_DATETIME'])
 
 # %% Define data frame columns
 # Input
@@ -57,9 +57,9 @@ df_prod[liquid_cum_col] = df_prod[oil_cum_col] + df_prod[water_cum_col]
 # %% Plot oil production from all the wells
 fig_1, (ax_11, ax_12) = plt.subplots(2, 1, sharex=True)
 
-(df_prod.pivot(date_col, well_name_col, oil_rate_col)
+(df_prod.pivot_table(oil_rate_col,date_col, well_name_col)
  .plot(colormap="Greens_r", lw=1, ax=ax_11, legend=False))
-(df_prod.pivot(date_col, well_name_col, water_rate_col)
+(df_prod.pivot_table(water_rate_col,date_col, well_name_col)
  .plot(colormap="Blues_r", lw=1, ax=ax_12, legend=False))
 
 fig_1.suptitle("Production Rate per Well")
@@ -75,8 +75,8 @@ df_prod_tank = (df_prod[[date_col, tank_name_col, *cols_output]]
                 .groupby([date_col, tank_name_col])
                 .sum().reset_index())
 
-df_prod_tank.pivot(date_col, tank_name_col, oil_rate_col).plot(lw=1, ax=ax_21)
-df_prod_tank.pivot(date_col, tank_name_col, water_rate_col).plot(lw=1, ax=ax_22,
+df_prod_tank.pivot_table(oil_rate_col, date_col, tank_name_col).plot(lw=1, ax=ax_21)
+df_prod_tank.pivot_table(water_rate_col,date_col, tank_name_col).plot(lw=1, ax=ax_22,
                                                                  legend=False)
 
 ax_21.legend(fontsize=6)
@@ -90,7 +90,7 @@ plt.show()
 # Rename column names for pressure data frame to use the same as the production one
 df_press.rename(columns={"WELLBORE": well_name_col, "DATE": date_col}, inplace=True)
 # Make sure the date column is o datetime object
-df_press[date_col] = df_press[date_col].astype("datetime64")
+df_press[date_col] = pd.to_datetime(df_press[date_col])
 # Specify important columns
 press_col = "PRESSURE_DATUM"
 press_type_col = "TEST_TYPE"
@@ -112,8 +112,8 @@ df_press[liquid_cum_col] = interp_from_dates(df_press[date_col],
 # %% Plot all pressure data colouring by type, vs date and vs Liq. Cum.
 fig_3, (ax_31, ax_32) = plt.subplots(2, 1)
 
-df_press.pivot(date_col, press_type_col, press_col).plot(style="o", ax=ax_31, ms=2)
-df_press.pivot(liquid_cum_col, press_type_col, press_col).plot(style="o", ax=ax_32,
+df_press.pivot_table(press_col,date_col, press_type_col).plot(style="o", ax=ax_31, ms=2)
+df_press.pivot_table(press_col,liquid_cum_col, press_type_col).plot(style="o", ax=ax_32,
                                                                ms=2, legend=False)
 # Set first axes
 ax_31.set_title("Pressure data vs. Date")
@@ -144,7 +144,7 @@ df_tank: pd.DataFrame = (
 # The resulting column is the liquid cumulative, so rename it
 df_tank.rename(columns={liquid_vol_col: liquid_cum_col}, inplace=True)
 # Plot cumulatives to check
-ax_4 = (df_tank.pivot(date_col, tank_name_col, liquid_cum_col)
+ax_4 = (df_tank.pivot_table(liquid_cum_col,date_col, tank_name_col)
         .fillna(method="ffill")
         .plot())
 
@@ -165,10 +165,9 @@ df_press[liquid_cum_col_per_tank] = (
 #%% Plot pressure per tank vs. date and vs. liquid cumulative
 fig_5, (ax_51, ax_52) = plt.subplots(2, 1)
 
-df_press.pivot_table(press_col, date_col, tank_name_col).plot(ax=ax_51, style="o")
+df_press.pivot_table(press_col, date_col,tank_name_col).plot(ax=ax_51, style="o")
 df_press.pivot_table(press_col,
-                     liquid_cum_col_per_tank,
-                     tank_name_col).plot(ax=ax_52,
+                     liquid_cum_col_per_tank,tank_name_col).plot(ax=ax_52,
                                          style="o",
                                          legend=False)
 
@@ -234,12 +233,14 @@ df_press[uw_col] = underground_withdrawal(df_press, oil_cum_col, water_cum_col,
                                           gas_cum_col, oil_fvf_col, 1,
                                           gas_fvf_col, gas_oil_rs_col, 0)
 
+
 #%% Calculate the pressure volumetric average per tank
 avg_freq = "12MS"
 df_press_avg = df_press.groupby(tank_name_col).apply(
     lambda g: pressure_vol_avg(g, well_name_col, date_col, press_col, uw_col,
                                avg_freq, "end")
 ).reset_index(0)
+press_avg = df_press_avg.to_csv("press_avg.csv", index=False)
 #%% Plot the pressure average and normal pressures of the central tank
 df_press_avg_tank = df_press_avg.loc[df_press_avg[tank_name_col] == "tank_center",
                                      [date_col, press_col]]

@@ -1301,7 +1301,7 @@ def Bo_bw(P, T, salinity, unit=1):
 
     IF UNITS 1 is selected introduce:
         | Pressure (P) in PSI
-        | Temperature (T) in ºF
+        | Temperature (T)2 in ºF
         | Salinity in ppm
         | Bo returns in bbl/STB
 

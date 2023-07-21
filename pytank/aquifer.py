@@ -62,6 +62,7 @@ def aquifer_fetkovich(aq_radius, res_radius, aq_thickness, aq_por, ct, pr, theta
         * parameter required only for linear flow, ft
         :return: a DataFrame containing the cumulative water influx, bbl
     """
+    global j
     if flow_type == 'linear' and (width is None or length is None):
         raise ValueError("When using linear flow, "
                          "width and length are required arguments")
@@ -69,9 +70,9 @@ def aquifer_fetkovich(aq_radius, res_radius, aq_thickness, aq_por, ct, pr, theta
     pr_array = variable_type(pr)
     delta_t = variable_type(time_step)
     # Check if pressure array is not in descendant order throw an error
-    order = pd.Series(pr_array).is_monotonic_decreasing
-    if order is False:
-        raise ValueError("Pressure array must be in descendant order")
+    # order = pd.Series(pr_array).is_monotonic_decreasing
+    # if order is False:
+    #     raise ValueError("Pressure array must be in descendant order")
     # Check if time step and pressure dimensions are equal
     # this can be done if time step is entered as array
     if not all(pr_array > 0):
@@ -84,7 +85,7 @@ def aquifer_fetkovich(aq_radius, res_radius, aq_thickness, aq_por, ct, pr, theta
                              "should be equal,"
                              " please verify your input")
     # Calculate the initial volume of water in the aquifer (Wi)
-    wi = (math.pi / 5.615) * (aq_radius ** 2 - res_radius ** 2) * aq_thickness * aq_por
+    wi = (math.pi / 5.615) * (aq_radius**2 - res_radius ** 2) * aq_thickness * aq_por
     # Calculate the maximum possible water influx (Wei)
     f = theta / 360
     wei = ct * wi * pr_array[0] * f
@@ -100,6 +101,10 @@ def aquifer_fetkovich(aq_radius, res_radius, aq_thickness, aq_por, ct, pr, theta
         j = (0.003381 * k * width * aq_thickness) / (water_visc * length)
     elif boundary_type == "constant_pressure" and flow_type == "linear":
         j = (0.001127 * k * width * aq_thickness) / (water_visc * length)
+    elif boundary_type == "infinite" and flow_type == "radial":
+        a = math.sqrt((0.0142 * k * 365)/ (f * water_visc * ct) )
+        j = (0.00708 * k * aq_thickness * f) / (water_visc * math.log(a/res_radius))
+
     # Calculate the incremental water influx (We)n during the nth time interval
     # Calculate cumulative water influx
     cum_water_influx = 0
@@ -126,9 +131,7 @@ def aquifer_fetkovich(aq_radius, res_radius, aq_thickness, aq_por, ct, pr, theta
         pr = pr_array[ip]
         cum_water_influx = cum_water_influx + we
         pa = pr_array[0] * (1 - (cum_water_influx / wei))
-        df = df.append(
-            {'Delta We': we, 'Cumulative We': cum_water_influx},
-            ignore_index=True)
+        df = df._append({'Delta We': we, 'Cumulative We': cum_water_influx}, ignore_index=True)
     df['Elapsed time'] = elapsed_time
     df = df.set_index('Elapsed time')
     return df
@@ -155,9 +158,9 @@ def aquifer_carter_tracy(aq_por, ct, res_radius, aq_thickness, theta, aq_perm,
     pr_array = variable_type(pr)
     t_array = variable_type(time)
     # Check if pressure array is not in descendant order throw an error
-    order = pd.Series(pr_array).is_monotonic_decreasing
-    if order is False:
-        raise ValueError("Pressure array must be in descendant order")
+    # order = pd.Series(pr_array).is_monotonic_decreasing
+    # if order is False:
+    #     raise ValueError("Pressure array must be in descendant order")
     if not all(pr_array > 0):
         raise ValueError("Pressure must be greater than zero")
     # Check if time step and pressure dimensions are equal
@@ -192,12 +195,12 @@ def aquifer_carter_tracy(aq_por, ct, res_radius, aq_thickness, theta, aq_perm,
         (618.618 * (td ** 1.5)) + (538.072 * (td ** 2)) + \
         (142.41 * (td ** 2.5))
     pr_deriv = np.where(td > 100, 1 / (2 * td), e / d)
-    print(pr_deriv)
+    #print(pr_deriv)
 
     # Calculate the cumulative water influx at any time, ti
     df = pd.DataFrame(columns=['Cumulative water influx, bbl'])
     we = 0
-    df = df.append(
+    df = df._append(
             {'Cumulative water influx, bbl': we},
             ignore_index=True)
     for i in np.arange(1, len(td)):
@@ -209,7 +212,7 @@ def aquifer_carter_tracy(aq_por, ct, res_radius, aq_thickness, theta, aq_perm,
         a5 = td[i-1] * pr_deriv[i]
         cum_influx_water = we + (a1 * ((a2 - a3) / (a4 - a5)))
         we = cum_influx_water
-        df = df.append(
+        df = df._append(
             {'Cumulative water influx, bbl': we},
             ignore_index=True)
     df['Elapsed time, days'] = t_array

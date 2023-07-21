@@ -67,7 +67,7 @@ def underground_withdrawal(
     oil_fvf_col = "oil_fvf"
     water_fvf_col = "water_fvf"
     gas_fvf_col = "gas_fvf"
-    rs_col = "gas_oil_rs"
+    rs_col = "gas_oil_rs_col"
     rsw_col = "gas_water_rs"
 
     # Dictionary containing the names of some columns of the dataframe
