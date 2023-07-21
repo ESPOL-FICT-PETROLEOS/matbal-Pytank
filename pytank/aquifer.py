@@ -126,9 +126,7 @@ def aquifer_fetkovich(aq_radius, res_radius, aq_thickness, aq_por, ct, pr, theta
         pr = pr_array[ip]
         cum_water_influx = cum_water_influx + we
         pa = pr_array[0] * (1 - (cum_water_influx / wei))
-        df = df.append(
-            {'Delta We': we, 'Cumulative We': cum_water_influx},
-            ignore_index=True)
+        df = df._append({'Delta We': we, 'Cumulative We': cum_water_influx}, ignore_index=True)
     df['Elapsed time'] = elapsed_time
     df = df.set_index('Elapsed time')
     return df
