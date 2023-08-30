@@ -129,7 +129,7 @@ gas_o_rs = []
 # interp_pvt_matbal function to interpolate and calculate the oil_fvf corresponding to
 # each of its pressure values
 
-for press in df_center[pres_col]:
+for press in df_mbal2[pres_col]:
     oil_fvf.append(interp_pvt_matbal(df_pvt, ppvt_col, oil_fvf_col, press))
 
 # Transforming this numpy array to a pandas Series
@@ -140,7 +140,7 @@ oil_fvf = pd.Series(oil_fvf, name="oil_fvf")
 # interp_pvt_matbal function to interpolate and calculate the gas_fvf corresponding to
 # each of its pressure values
 
-for press in df_center[pres_col]:
+for press in df_mbal2[pres_col]:
     gas_fvf.append(interp_pvt_matbal(df_pvt, ppvt_col, gas_fvf_col, press))
 
 # Transforming this numpy array to a pandas Series
@@ -150,38 +150,31 @@ gas_fvf = pd.Series(gas_fvf, name="gas_fvf")
 # interp_pvt_matbal function to interpolate and calculate the gas_oil_rs_col corresponding
 # to each of its pressure values
 
-for press in df_center[pres_col]:
+for press in df_mbal2[pres_col]:
     gas_o_rs.append(interp_pvt_matbal(df_pvt, ppvt_col, gas_oil_rs_col, press))
 
 # Transforming this numpy array to a pandas Series
 gas_oil_rs = pd.Series(gas_o_rs, name="gas_oil_rs_col")
 
 #%% Concatenation of the mbal dataframe with its respective pvt columns (Pandas Series)
-df_center = pd.concat([df_center, oil_fvf, gas_fvf, gas_oil_rs], axis=1).sort_values(
+df_mbal2 = pd.concat([df_mbal2, oil_fvf, gas_fvf, gas_oil_rs], axis=1).sort_values(
     date_col
 )
 
 #%% Rename of the columns of the mbal dataframe to match the variables names stated
 # in the file attached in unterbase
-df_center.rename(
+df_mbal2.rename(
     columns={
         "OIL_CUM_Tank": "oil_prod_cum",
         "WATER_CUM_Tank": "water_prod_cum",
-        "GAS_CUM_Tank": "gas_prod_cum","START_DATETIME": "Date","PRESSURE_DATUM": "Pressure"
+        "GAS_CUM_Tank": "gas_prod_cum",
     },
     inplace=True,
 )
-df_center =df_center.drop(columns=['DATE'])
-nueva_fila = pd.DataFrame({'Date': '1987-09-01', 'Tank': 'tank_center', 'Pressure': 3700.00, 'oil_fvf': 1.1},
-                          index=[0])
-df_center = pd.concat([nueva_fila, df_center]).reset_index(drop=True)
-df_center.iloc[0] = df_center.iloc[0].fillna(0)
-df_center['Date']=pd.to_datetime(df_center['Date'])
-fecha= pd.to_datetime("1987-09-01")
-df_center['time_setp'] = (df_center['Date']-fecha).dt.days
+
 #%% Convert the mbal dataframe to a csv file, which then will be imported to calculate
 # the terms F, Eo, Eg, and Efw
-mbal = df_center.to_csv("mbal_Dataframe3.csv", index=False)
+mbal = df_mbal2.to_csv("mbal_Dataframe2.csv", index=False)
 
 
 #%% Using the interp_dates_row function to add the pressure column to the df_tanks
@@ -247,7 +240,7 @@ df_tanks.rename(
 
 #%% Convert the df_tanks dataframe to a csv file, which then will be imported to
 # calculate the terms F, Eo, Eg, and Efw
-mbal_tanks = df_tanks.to_csv("mbal_tanks2.csv", index=False)
+mbal_tanks = df_tanks.to_csv("mbal_tanks.csv", index=False)
 
 #%% New Dataframe with pressure avg
 
