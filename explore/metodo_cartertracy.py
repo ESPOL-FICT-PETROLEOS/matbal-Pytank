@@ -12,151 +12,134 @@ from pytank.pvt_interp import interp_pvt_matbal
 from pytank.pvt_correlations import Bo_bw, comp_bw_nogas
 
 #%%
-def odia(n):
-    return n * 365
 
-
-def EBM(press, np, bo, cf, cw, sw0, boi, name, we, date, p2, F):
-    pi = 3700
-    Efw = boi * ((cf + cw * sw0) / (1 - sw0)) * (pi - press)
-    Eo = bo - boi
-    Et = Eo + Efw
-    co = (bo - boi) / (boi * (pi - press))
-    coeff = ((co * (1 - sw0)) + (cw * sw0) + cf) / (1 - sw0)
-    E = coeff * boi * (pi - press)
-    x = we / E
-    y = F / E
-    y2 = press
-    # Grafica
-    slope, intercept, r, p, se = stats.linregress(x, y)
-    N1 = slope
-    yt = intercept + (x * N1)
-    fig, ax = plt.subplots(figsize=(8, 6))
-    ax.scatter(x, y)
-    plt.plot(x, y)
-    ax.plot(x, yt, c='g', label='Regresion lineal')
-    print("Intercept(N)MMStb: \n", (intercept / 1e+6))
-    # Nombres de los ejes
-    text = " N [MMStb]: %.3f " % (intercept / 1000000)
-    plt.title('Gráfico Havlena y Odeh' + name)
-    plt.xlabel("WeBw/Eo+Efw")
-    plt.ylabel('F/Eo+Efw ')
-    plt.text(1e+7, 2e+8, text)
-    plt.legend()
-    plt.show()
-
-    abajo = 70e+6 * boi * coeff
-    abajo2 = 19543283.851659186 * boi * coeff
-    arriba = F - we
-    pr = pi - (arriba / abajo)
-    pr2 = pi - (arriba / abajo2)
-
-    # Grafica2
-    fig, ax = plt.subplots(figsize=(20, 10))
-    ax.scatter(np, y2, label='Presion Observada')
-    plt.plot(np, p2, c='g', label='Presion Calculada')
-    # plt.plot(date, pr2, c='r', label='Presion Optimizada')
-    plt.title('Gráfico P vs t ', fontsize=15)
-    plt.xlabel("Tiempo (Años)", fontsize=15)
-    plt.ylabel('Presion (psia)', fontsize=15)
-    # ax.set_ylim([0, 4000])
-    plt.xticks(fontsize=15)
-    plt.yticks(fontsize=15)
-    plt.legend(fontsize=15)
-    ax.grid(axis='both', color='gray', linestyle='dashed')
-
-    plt.show()
-
-# def uwater2(p,T):
-#     return math.exp(1)
-
-df_ta = pd.read_csv("mbal_Dataframe3.csv")
+df_ta = pd.read_csv("mbal_Dataframe.csv")
 df_ta2 = df_ta[df_ta["Tank"] == "tank_center"]
-# nueva_fila = pd.DataFrame({'DATE': '1987-09-01', 'Tank': 'tank_center', 'Pressure': 3700.00, 'oil_fvf': 1.1},
-#                           index=[0])
-# df_ta2 = pd.concat([nueva_fila, df_ta2]).reset_index(drop=True)
-# df_ta2.iloc[0] = df_ta2.iloc[0].fillna(0)
-# df_ta2['DATE']=pd.to_datetime(df_ta2['DATE'])
-# fecha= pd.to_datetime("1987-09-01")
-# df_ta2['DATE2'] = (df_ta2['DATE']-fecha).dt.days
-# time=df_ta2['DATE2'].to_numpy()
+df_ta2.rename(
+    columns={"PRESSURE_DATUM":"Pressure", "DATE": "Date"},inplace=True)
+nueva_fila = pd.DataFrame({'Date': '1987-09-01', 'Pressure': 4500.00, 'oil_fvf': 1.1},
+                          index=[0])
+df_ta2 = pd.concat([nueva_fila, df_ta2]).reset_index(drop=True)
+df_ta2.iloc[0] = df_ta2.iloc[0].fillna(0)
+df_ta2['Date']=pd.to_datetime(df_ta2['Date'])
+fecha= pd.to_datetime("1987-09-01")
+df_ta2['time_setp'] = (df_ta2['Date']-fecha).dt.days
+
 df_pvt = pd.read_csv("../tests/data_for_tests/full_example_1/pvt.csv")
 df_pvt = df_pvt.fillna(method="ffill")
 # time_step = time
 ppvt_col = "Pressure"
 oil_fvf_col = "Bo"
-
-
+gas_fvf_col = "Bg"
+gas_oil_rs_col = "GOR"
+df_ta2['gas_prod_cum']= df_ta2['gas_prod_cum']*89
 def mbal(p, pi, Np, wp, bo, cf, cw, sw0, boi, N, we,bw):
+    #if rsi == rs:
     Eo = (bo - boi)
     Efw = boi * (((cw * sw0) + cf) / (1 - sw0)) * (pi - p)
     F = (Np * bo) + (wp * bw)
-    return (N * (Eo + Efw)) + (we * bw) - F
+    funcion_P = (N * (Eo + Efw)) + (we * bw) - F
+    # else:
+    # Eo = (bo - boi) + (rsi-rs)*bg
+    # Efw = (1+m) * boi * (((cw * sw0) + cf) / (1 - sw0)) * (pi - p)
+    # Eg = boi*((bg/bgi)-1)
+    # Gp= (gp-(Np*rs))*bg
+    # F = (Np * bo) + (wp * bw) + Gp
+    # funcion_P = (N * (Eo + Efw + m*Eg)) + (we * bw) - F
+
+    return funcion_P
 
 
-def aquifer_fetkovich(aq_radius, res_radius, aq_thickness, aq_por, ct, p, theta, k, water_visc, p_anterior, cum, pi):
-    delta_t = 365
-    wi = (math.pi / 5.615) * (aq_radius ** 2 - res_radius ** 2) * aq_thickness * aq_por
+def carter(aq_por, ct, res_radius, aq_thickness, theta, aq_perm,
+                         water_visc, pr, time,time_anterior,we,pi):
+    pr_array = pr
+
+    # Calculate the van Everdingen-Hurst water influx constant
     f = theta / 360
-    wei = ct * wi * pi * f
-    rd = aq_radius / res_radius
-    j = (0.00708 * k * aq_thickness * f) / (water_visc * (math.log(abs(rd))))
-    pa = pi * (1 - (cum / wei))
-    pr_avg = (p_anterior + p) / 2
-    we = (wei / pi) * \
-         (1 - math.exp((-1 * j * pi * delta_t) / wei)) * \
-         (pa - pr_avg)
-    cum_water_influx = cum + we
-    return cum_water_influx
+    b = 1.119 * aq_por * ct * (res_radius ** 2) * aq_thickness * f
 
+    # Estimate dimensionless time (tD)
+    cte = 0.006328 * aq_perm / (aq_por * water_visc * ct * (res_radius ** 2))
+    td =  time * cte
+    td2 = time_anterior*cte
+    # Calculate the total pressure drop (Pi-Pn) as an array, for each time step n.
+    pr_drop =  pi - pr_array
 
-def press(p, Np, wp, cf, t, salinity, df_pvt, aq_radius, res_radius, aq_thickness, aq_por, theta, k, water_visc,
-          p_anterior, cum, pi, sw0, N, boi):
+    # Estimate the dimensionless pressure
+    pr_d =  0.5 * (np.log(td) + 0.80907)
+    # Estimate the dimensionless pressure derivative
+    e = 716.441 + (46.7984 * (td ** 0.5)) + (270.038 * td) + (71.0098 * (td ** 1.5))
+    d = (1296.86 * (td ** 0.5)) + (1204.73 * td) + \
+        (618.618 * (td ** 1.5)) + (538.072 * (td ** 2)) + \
+        (142.41 * (td ** 2.5))
+    pr_deriv = 1 / (2 * td)
+
+    a1 = td - td2
+    a2 = b * pr_drop
+    a3 = we * pr_deriv
+    a4 = pr_d
+    a5 = td2 * pr_deriv
+    cum_influx_water = we + (a1 * ((a2 - a3) / (a4 - a5)))
+    we = cum_influx_water
+    return we
+
+def press(p, Np, wp, cf, t, salinity, df_pvt, res_radius, aq_thickness, aq_por, theta, k, water_visc,
+          time,time_anterior, we, pi, sw0, N, boi):
+
     bo = interp_pvt_matbal(df_pvt, ppvt_col, oil_fvf_col, p)
+
     bw = Bo_bw(p, t, salinity, unit=1)
     cw = comp_bw_nogas(p, t, salinity, unit=1)
     ct = cw + cf
-    we = aquifer_fetkovich(aq_radius, res_radius, aq_thickness, aq_por, ct, p, theta, k, water_visc, p_anterior, cum,
-                           pi)
+    we = carter(aq_por, ct, res_radius, aq_thickness, theta, k,
+                         water_visc, p, time,time_anterior,we,pi)
     return mbal(p, pi, Np, wp, bo, cf, cw, sw0, boi, N, we,bw)
 
 
 cf = 4.5e-6
 t = 200
 salinity = 30000
-aq_radius = 14000
-res_radius = 2000
-aq_thickness = 20
-aq_por = 0.26
-theta = 290
-k = 25
-water_visc = 0.6
+aq_radius = 15000
+res_radius = 60
+aq_thickness = 7
+aq_por = 0.24
+theta = 135
+k = 42
+water_visc = 0.35
 cum = 0
-pi = 3700
+pi = 4500
 sw0 = 0.25
-boi = interp_pvt_matbal(df_pvt, ppvt_col, oil_fvf_col, 3700)
-N = 72e+6
+boi = interp_pvt_matbal(df_pvt, ppvt_col, oil_fvf_col, pi)
+print(boi)
+N = 70e+6
 x0 = 3600
 P_calculada = [pi]
-for i in range(len(df_ta2['Pressure'])):
-    Np = df_ta2['oil_prod_cum'][i]
-    wp = df_ta2['water_prod_cum'][i]
-    p_anterior = P_calculada[i]
-    # Calculate current reservoir pressure given all other material balance variables through numeric solving.
-    presion = fsolve(
-        press, x0, args=(
-            Np, wp, cf, t, salinity, df_pvt, aq_radius, res_radius, aq_thickness, aq_por, theta, k, water_visc,
-            p_anterior, cum, pi, sw0, N, boi
-        )
-    )[0]
-    print(f"Calculated Reservoir Pressure: {presion}")
-    x0 = presion
+x=len(df_ta2['Pressure'])
 
-    P_calculada.append(presion)
-    cw = comp_bw_nogas(presion, t, salinity, unit=1)
-    ct = cf + cw
-    cum = aquifer_fetkovich(aq_radius, res_radius, aq_thickness, aq_por, ct, presion, theta, k, water_visc, p_anterior,
-                            cum, pi)
+
+for i in range(x):
+    if i !=33:
+        Np = df_ta2['oil_prod_cum'][i+1]
+        wp = df_ta2['water_prod_cum'][i+1]
+        time = df_ta2['time_setp'][i+1]
+        time_anterior= df_ta2['time_setp'][i]
+        # Calculate current reservoir pressure given all other material balance variables through numeric solving.
+        presion = fsolve(
+            press, x0, args=(
+                Np, wp, cf, t, salinity, df_pvt, res_radius, aq_thickness, aq_por, theta, k, water_visc,
+                time, time_anterior, cum, pi, sw0, N, boi
+            )
+        )[0]
+        print(f"Calculated Reservoir Pressure: {presion}")
+        x0 = presion
+        P_calculada.append(presion)
+        cw = comp_bw_nogas(presion, t, salinity, unit=1)
+        ct = cf + cw
+        cum = carter(aq_por, ct, res_radius, aq_thickness, theta, k,
+                             water_visc, x0, time,time_anterior,cum,pi)
+        print(f"Calculated Cum: {cum}")
+    else:
+        print("termino")
     #print(f"Wei:{cum}")
 
 # def op(parametros,df,cf,t,salinity,df_pvt,sw0,cum,x0,k,water_visc,pi):
@@ -219,9 +202,7 @@ for i in range(len(df_ta2['Pressure'])):
 #     cum = aquifer_fetkovich(aq_radius, res_radius, aq_thickness, aq_por, ct, p_nueva, theta, k, water_visc,
 #                             p_anterior, cum, pi)
 #%%
-nueva_fila = pd.DataFrame({'Date': '1987-09-01', 'Pressure': 3700.00, 'oil_fvf': 1.1},
-                          index=[0])
-df_ta2 = pd.concat([nueva_fila, df_ta2]).reset_index(drop=True)
+
 df_ta2["Date"] = pd.to_datetime(df_ta2["Date"])
 df_ta2.iloc[0] = df_ta2.iloc[0].fillna(0)
 #%%
@@ -232,9 +213,13 @@ plt.plot(df_ta2['Date'].dt.year, P_calculada, c='g', label='Presion Calculada')
 plt.title('Gráfico P vs t ', fontsize=15)
 plt.xlabel("Tiempo (Años)", fontsize=15)
 plt.ylabel('Presion (psia)', fontsize=15)
-ax.set_ylim([400, 4000])
+#ax.set_ylim([400, 4000])
 # plt.xticks(fontsize=15)
 plt.yticks(fontsize=15)
 ax.grid(axis='both', color='gray', linestyle='dashed')
 plt.legend(fontsize=15)
 plt.show()
+
+
+
+
