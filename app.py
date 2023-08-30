@@ -34,7 +34,7 @@ except Exception as e:
 with st.sidebar:
     options = option_menu(
         menu_title="Main Menu",
-        options=["Home","Exploratory Data Analysis" ,"Graphic Campbell", "Graphical Method","Analytical method"]
+        options=["Home","Exploratory Data Analysis" ,"Campbell Plot", "Graphical Method","Analytical method"]
         , icons=["house-gear","bar-chart-fill","bar-chart-steps","graph-up","graph-down-arrow"],
     )
 if options == "Home":
@@ -131,35 +131,34 @@ elif options == "Exploratory Data Analysis":
         df_prod[liquid_rate_col] = df_prod[oil_rate_col] + df_prod[water_rate_col]
         df_prod[liquid_cum_col] = df_prod[oil_cum_col] + df_prod[water_cum_col]
 
-        fig_1, (ax_11, ax_12) = plt.subplots(2, 1, sharex=True)
+        fig_1 = px.line(df_prod, x=date_col, y=oil_rate_col, color=well_name_col,
+                        labels={date_col: "Date", oil_rate_col: "Oil Rate (STB/D)"})
+        fig_1.update_layout(title="Production Rate per Well", xaxis_title="Date", yaxis_title="Rate")
 
-        (df_prod.pivot_table(oil_rate_col, date_col, well_name_col)
-         .plot(colormap="Greens_r", lw=1, ax=ax_11, legend=False))
-        (df_prod.pivot_table(water_rate_col, date_col, well_name_col)
-         .plot(colormap="Blues_r", lw=1, ax=ax_12, legend=False))
+        fig_12 = px.line(df_prod, x=date_col, y=water_rate_col, color=well_name_col,
+                        labels={date_col: "Date",
+                                water_rate_col: "Water Rate (STB/D)"})
+        fig_12.update_layout(title="Production Rate per Well", xaxis_title="Date", yaxis_title="Rate")
+        st.plotly_chart(fig_1)
+        st.plotly_chart(fig_12)
 
-        fig_1.suptitle("Production Rate per Well")
-        ax_11.set_ylabel("Oil Rate (STB/D)")
-        ax_12.set_ylabel("Water Rate (STB/D)")
-        ax_12.set_xlabel("Date")
-        st.pyplot(fig_1)
 
-        fig_2, (ax_21, ax_22) = plt.subplots(2, 1, sharex=True)
 
         df_prod_tank = (df_prod[[date_col, tank_name_col, *cols_output]]
                         .groupby([date_col, tank_name_col])
                         .sum().reset_index())
 
-        df_prod_tank.pivot_table(oil_rate_col, date_col, tank_name_col).plot(lw=1, ax=ax_21)
-        df_prod_tank.pivot_table(water_rate_col, date_col, tank_name_col).plot(lw=1, ax=ax_22,
-                                                                               legend=False)
+        fig_2 = px.line(df_prod_tank, x=date_col, y=oil_rate_col, color=tank_name_col,
+                        labels={date_col: "Date", oil_rate_col: "Oil Rate (STB/D)"})
+        fig_2.update_layout(title="Production Rate per Tank", xaxis_title="Date", yaxis_title="Oil Rate (STB/D)")
 
-        ax_21.legend(fontsize=6)
-        fig_2.suptitle("Production Rate per Tank")
-        ax_21.set_ylabel("Oil Rate (STB/D)")
-        ax_22.set_ylabel("Water Rate (STB/D)")
-        ax_22.set_xlabel("Date")
-        st.pyplot(fig_2)
+        fig_3 = px.line(df_prod_tank, x=date_col, y=water_rate_col, color=tank_name_col,
+                        labels={date_col: "Date", water_rate_col: "Water Rate (STB/D)"})
+        fig_3.update_layout(xaxis_title="Date", yaxis_title="Water Rate (STB/D)")
+
+
+        st.plotly_chart(fig_2)
+        st.plotly_chart(fig_3)
 
         # Rename column names for pressure data frame to use the same as the production one
         df_press.rename(columns={"WELLBORE": well_name_col, "DATE": date_col}, inplace=True)
@@ -181,27 +180,16 @@ elif options == "Exploratory Data Analysis":
                                                      df_field[date_col],
                                                      df_field[liquid_cum_col])
 
-        fig_3, (ax_31, ax_32) = plt.subplots(2, 1)
+        fig_5 = px.scatter(df_press, x=date_col, y=press_col, color=press_type_col, title="Pressure data vs. Date",
+                           labels={date_col: "Date", press_col: "Pressure (psia)"})
+        fig_4 = px.scatter(df_press, x=liquid_cum_col, y=press_col, color=press_type_col,
+                           title="Pressure data vs. Liquid Cumulative",
+                           labels={liquid_cum_col: "Liquid Cumulative (STB)", press_col: "Pressure (psia)"})
 
-        df_press.pivot_table(press_col, date_col, press_type_col).plot(style="o", ax=ax_31, ms=2)
-        df_press.pivot_table(press_col, liquid_cum_col, press_type_col).plot(style="o", ax=ax_32,
-                                                                             ms=2, legend=False)
-        # Set first axes
-        ax_31.set_title("Pressure data vs. Date")
-        ax_31.set_xlabel("Date")
-        ax_31.set_ylabel("Pressure (psia)")
-        ax_31.tick_params(axis="x", labelsize=8)
-        ax_31.legend(fontsize=8)
-        ax_31.yaxis.set_major_formatter(formatter)
-        # Set second axes
-        ax_32.set_title("Pressure data vs. Liquid Cumulative")
-        ax_32.set_xlabel("Liquid Cumulative (STB)")
-        ax_32.set_ylabel("Pressure (psia)")
-        ax_32.xaxis.set_major_formatter(formatter)
-        ax_32.yaxis.set_major_formatter(formatter)
+        # Display the Plotly figures
 
-        plt.tight_layout()
-        st.pyplot(fig_3)
+        st.plotly_chart(fig_5)
+        st.plotly_chart(fig_4)
 
         cols_group = [date_col, tank_name_col, liquid_vol_col]
 
@@ -231,54 +219,41 @@ elif options == "Exploratory Data Analysis":
                                                       tank_name_col), axis=1)
         )
 
-        fig_5, (ax_51, ax_52) = plt.subplots(2, 1)
+        # Create the Plotly figures
+        fig_5 = px.scatter(df_press, x=date_col, y=press_col, color=tank_name_col, title="Pressure data vs. Date",
+                           labels={date_col: "Date", press_col: "Pressure (psia)"})
+        fig_6 = px.scatter(df_press, x=liquid_cum_col_per_tank, y=press_col, color=tank_name_col,
+                           title="Pressure data vs. Liquid Cumulative",
+                           labels={liquid_cum_col_per_tank: "Liquid Cumulative (STB)", press_col: "Pressure (psia)"})
 
-        df_press.pivot_table(press_col, date_col, tank_name_col).plot(ax=ax_51, style="o")
-        df_press.pivot_table(press_col,
-                             liquid_cum_col_per_tank, tank_name_col).plot(ax=ax_52,
-                                                                          style="o",
-                                                                          legend=False)
-
-        ax_51.set_title("Pressure data vs. Date")
-        ax_51.set_xlabel("Date")
-        ax_51.set_ylabel("Pressure (psia)")
-        ax_51.tick_params(axis="x", labelsize=8)
-        ax_51.legend(fontsize=8)
-        ax_51.yaxis.set_major_formatter(formatter)
-        # Set second axes
-        ax_52.set_title("Pressure data vs. Liquid Cumulative")
-        ax_52.set_xlabel("Liquid Cumulative (STB)")
-        ax_52.set_ylabel("Pressure (psia)")
-        ax_52.xaxis.set_major_formatter(formatter)
-        ax_52.yaxis.set_major_formatter(formatter)
-
-        plt.tight_layout()
-        st.pyplot(fig_5)
+        # Display the Plotly figures
+        st.plotly_chart(fig_5)
+        st.plotly_chart(fig_6)
     except Exception as e:
         st.write("")
 
 
-elif options== "Graphic Campbell":
+elif options== "Campbell Plot":
     try:
         se_p = st.selectbox("Pressure", df.columns)
         se_np = st.selectbox("Production oil cumulate", df.columns)
         se_wp = st.selectbox("Production water cumulate", df.columns)
         se_date = st.selectbox("Date", df.columns)
-        se_bo = st.selectbox("Factor oil", df.columns)
+        se_bo = st.selectbox("Bo", df.columns)
         df[se_date]=df[se_date].dt.year
         p = df[se_p].values
         np = df[se_np].values
         wp = df[se_wp].values
         bo = df[se_bo].values
         date = df[se_date].values
-        cf = st.sidebar.number_input("formatio compressibility", format="%.7f")
+        cf = st.sidebar.number_input("Formation compressibility", format="%.7f")
         sw0 = st.sidebar.number_input("Saturation water")
         pi = st.sidebar.number_input("Inicial Pressure")
-        boi = st.sidebar.number_input("Inicial Factor oil", format="%.5f")
+        boi = st.sidebar.number_input("Inicial Boi", format="%.5f")
         t = st.sidebar.number_input("Temperature")
         salinity = st.sidebar.number_input("Salinity")
         gra= Campbell(p, np,wp, bo, cf, sw0, boi, date,pi,t,salinity)
-        fig = px.scatter(gra, x='Date', y='F/Eo+Efw', title='Gráfico Campbell')
+        fig = px.scatter(gra, x='Date', y='F/Eo+Efw', title='Campbell Plot ')
         fig.update_xaxes(title_text='Date (Year)')
         fig.update_yaxes(title_text='F/Eo+Efw')
         x= gra['Date']
@@ -286,7 +261,7 @@ elif options== "Graphic Campbell":
         slope, intercept, r, p, se = stats.linregress(x, y)
         yt = intercept + (x * slope)
         fig.add_scatter(x=x, y=yt, mode='lines', line=dict(color='green'),
-                        name='Regression Lineal')
+                        name='Linear Regression')
         # Mostrar el gráfico en Streamlit
         st.plotly_chart(fig)
     except Exception as e:
@@ -331,17 +306,18 @@ elif options== "Graphical Method":
         se_np = st.selectbox("Production oil cumulate", df.columns)
         se_wp = st.selectbox("Production water cumulate", df.columns)
         se_we = st.selectbox("Cumulative We", df.columns)
-        se_bo = st.selectbox("Factor oil", df.columns)
+        se_bo = st.selectbox("Bo", df.columns)
         pr = df[se_p].values
         np = df[se_np].values
         wp = df[se_wp].values
         bo = df[se_bo].values
         we = df[se_we].values
-        sw0 = st.sidebar.number_input("Saturation water")
+        sw0 = st.sidebar.number_input("Water Saturation")
         pi = st.sidebar.number_input("Inicial Pressure")
         boi = st.sidebar.number_input("Inicial Bo", format="%.6f")
         gra = G_method(pr, np,wp, bo, cf, sw0, boi, we,pi,t,salinity)
-        fig = px.scatter(gra, x='We*Bw/Et', y='F/Eo+Efw', title='Gráfico Havlena y Odeh')
+        #Graphic
+        fig = px.scatter(gra, x='We*Bw/Et', y='F/Eo+Efw', title=' Havlena y Odeh Plot')
         fig.update_xaxes(title_text='We*Bw/Et')
         fig.update_yaxes(title_text='F/Eo+Efw')
         x = gra['We*Bw/Et']
@@ -349,9 +325,26 @@ elif options== "Graphical Method":
         slope, intercept, r, p, se = stats.linregress(x, y)
         yt = intercept + (x * slope)
         fig.add_scatter(x=x, y=yt, mode='lines', line=dict(color='green'),
-                        name='Regression Lineal')
+                        name='Linear Regression')
         text = f"N [MMStb]: {intercept / 1000000:.4f}"
-        fig.add_annotation(text=text, x=1e7, y=2e8)
+        fig.add_annotation(y=intercept,text=text,font=dict(
+            family="Courier New, monospace",
+            size=14,
+            color="#ffffff"
+            ),
+        align="center",
+        arrowhead=2,
+        arrowsize=1,
+        arrowwidth=2,
+        arrowcolor="#636363",
+        ax=20,
+        ay=-30,
+        bordercolor="#c7c7c7",
+        borderwidth=2,
+        borderpad=4,
+        bgcolor="#ff7f0e",
+        opacity=0.9)
+
         st.write(text)
         st.plotly_chart(fig)
 
@@ -372,7 +365,7 @@ elif options== "Analytical method":
         se_wp = st.selectbox("Production water cumulate", df.columns)
         se_ppvt = st.selectbox("Pressure PVT", df_pvt.columns)
         se_oil_fvf = st.selectbox("Bo", df_pvt.columns)
-        sw0 = st.sidebar.number_input("Saturation water")
+        sw0 = st.sidebar.number_input("Water Saturation")
         pi = st.sidebar.number_input("Inicial Pressure")
         aq_radius = st.slider("Aquifer Radius", 1000, 20000)
         res_radius = st.slider("Reservoir Radius", 100, 5000)
@@ -388,9 +381,9 @@ elif options== "Analytical method":
 
         fig = px.scatter(df, x='Date', y='Pressure', title='Graph P vs t')
         fig.add_scatter(x=df['Date'], y=P_nueva, mode='lines', line=dict(color='green'),
-                        name='Presion Calculada')
-        fig.update_xaxes(title_text='Tiempo (Años)')
-        fig.update_yaxes(title_text='Presion (psia)')
+                        name='Calculated Pressure')
+        fig.update_xaxes(title_text='Time(Años)')
+        fig.update_yaxes(title_text='Pressure (psia)')
         text = f"N [MMStb]: {N / 1000000:.4f}"
         st.write(text)
         st.plotly_chart(fig)
